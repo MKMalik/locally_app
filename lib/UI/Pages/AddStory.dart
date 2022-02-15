@@ -321,8 +321,8 @@ class _AddStoryState extends State<AddStory> {
           },
           controller: _storyTextController,
           focusNode: _focusNode,
-          maxLines: 100,
-          maxLength: 100,
+          maxLines: 20,
+          maxLength: 300,
           decoration: InputDecoration(
               border: InputBorder.none,
               hintText: 'Share your thoughs...',

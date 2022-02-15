@@ -1,4 +1,5 @@
 import 'package:LocalStory/model/story_model.dart';
+import 'package:LocalStory/model/user_model.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -135,7 +136,24 @@ class LoginProvider with ChangeNotifier {
     return Future.delayed(Duration.zero);
   }
 
-  Future<User> getCurrentUserDetails() async {
+  Future<DocumentSnapshot> getCurrentUserDetails() async {
+    var _user = _firestore
+        .collection('users')
+        .doc(FirebaseAuth.instance.currentUser.uid)
+        .get();
+
+    // _user.map((userData) async => {
+    //       print(await userData.data()['createdAt']),
+    //       userModel.createdAt = await userData.data()['createdAt'],
+    //       userModel.displayName = await userData.data()['displayName'],
+    //       userModel.email = await userData.data()['email'],
+    //       userModel.location = await userData.data()['location'],
+    //       userModel.photoUrl = await userData.data()['photoUrl'],
+    //       userModel.reportedBy = await userData.data()['reportedBy'],
+    //       userModel.totalStoryPosted =
+    //           await userData.data()['totalStoryPosted'],
+    //       userModel.userId = await userData.data()['userId'],
+    //     });
     return _user;
   }
 
@@ -243,5 +261,67 @@ class LoginProvider with ChangeNotifier {
       sent = false;
     });
     return sent;
+  }
+
+  Future<void> likeStory({String storyId, String userId}) async {
+    // userId is for who likes the story
+
+    // **************** append the userId in the likedBy list
+    await _firestore.runTransaction(
+      (transaction) async {
+        var docRef = _firestore.collection('stories').doc(storyId);
+        var snapshot = await transaction.get(docRef);
+
+        List<dynamic> likedByList = snapshot.data()['likedBy'] as List;
+
+        if (likedByList != null) {
+          if (!likedByList.contains(userId)) {
+            likedByList.add(userId);
+          }
+        } else {
+          likedByList = [userId];
+        }
+
+        transaction.update(docRef, {'likedBy': likedByList});
+
+        return likedByList;
+      },
+    );
+  }
+
+  Future<bool> isStoryLiked({String storyId, String currentUserId}) async {
+    bool isLiked;
+    await _firestore.runTransaction((transaction) async {
+      var docRef = _firestore.collection('stories').doc(storyId);
+      var snapshot = await transaction.get(docRef);
+
+      List<dynamic> likedByList = snapshot.data()['likedBy'] as List;
+
+      isLiked = likedByList.contains(currentUserId);
+    });
+
+    return isLiked;
+  }
+
+  Future<void> unlikeStory({String storyId, String userId}) async {
+    // userId is for who likes the story
+
+    // **************** append the userId in the likedBy list
+    await _firestore.runTransaction((transaction) async {
+      var docRef = _firestore.collection('stories').doc(storyId);
+      var snapshot = await transaction.get(docRef);
+
+      List<dynamic> likedByList = snapshot.data()['likedBy'] as List;
+
+      if (likedByList != null) {
+        if (likedByList.contains(userId)) {
+          likedByList.remove(userId);
+        }
+      }
+
+      transaction.update(docRef, {'likedBy': likedByList});
+
+      return likedByList;
+    });
   }
 }

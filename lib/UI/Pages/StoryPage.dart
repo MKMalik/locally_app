@@ -13,11 +13,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geoflutterfire/geoflutterfire.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:get_time_ago/get_time_ago.dart';
 
 class StoryPage extends StatefulWidget {
   final user;
@@ -84,21 +87,23 @@ class _StoryPageState extends State<StoryPage> {
       return await storyProvider.getCurrentLocation();
     }
 
-    // storyProvider.stories.forEach((story) {
-    //   for (var story in story) {
-    //     print(story.senderName);
-    //     print(story.story);
-    //   }
-    // });
+    likeStory({userId, storyId}) {
+      user.likeStory(storyId: storyId, userId: userId);
+    }
 
-    List<String> storyType = [
-      'Text',
-      'Image',
-      'Image',
-      'Text',
-      'Text',
-      'Image'
-    ];
+    unlikeStory({userId, storyId}) {
+      user.unlikeStory(storyId: storyId, userId: userId);
+    }
+
+    isStoryLiked({storyId}) async {
+      return await user.isStoryLiked(
+          currentUserId: currentUser.uid, storyId: storyId);
+    }
+
+    currentUserData() async {
+      var current_user = await user.getCurrentUserDetails();
+      return current_user.data();
+    }
 
     Size size = MediaQuery.of(context).size;
     getCurrentLocaion().then((currentPostion) {
@@ -119,7 +124,6 @@ class _StoryPageState extends State<StoryPage> {
                   child: SizedBox(),
                 ),
                 Container(
-                  // width: size.width,
                   height: size.height * 0.55,
                   child: SvgPicture.asset('Assets/background.svg'),
                 ),
@@ -135,13 +139,18 @@ class _StoryPageState extends State<StoryPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Local Story',
-                          style: GoogleFonts.coda(
-                              textStyle: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontSize: size.width * 0.08)),
+                        GestureDetector(
+                          onTap: () {
+                            currentUserData();
+                          },
+                          child: Text(
+                            'Locally',
+                            style: GoogleFonts.coda(
+                                textStyle: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: size.width * 0.08)),
+                          ),
                         ),
                         IconButton(
                           icon: Icon(
@@ -149,10 +158,24 @@ class _StoryPageState extends State<StoryPage> {
                             color: Colors.white,
                           ),
                           onPressed: () {
-                            Navigator.of(context).push(MaterialPageRoute(
-                                builder: (BuildContext context) {
-                              return SettingPage();
-                            }));
+                            Navigator.of(context).push(PageRouteBuilder(
+                                transitionDuration: Duration(milliseconds: 250),
+                                pageBuilder: (context, animation, animation1) {
+                                  return SettingPage();
+                                },
+                                transitionsBuilder: (BuildContext context,
+                                    Animation<double> animation,
+                                    Animation<double> secondaryAnimation,
+                                    Widget child) {
+                                  return Align(
+                                    // here you can try other transition types to changes animation (i.e., ScaleTransition, FadeTransition)
+                                    child: FadeTransition(
+                                      opacity: animation,
+                                      // sizeFactor: animation,
+                                      child: child,
+                                    ),
+                                  );
+                                }));
                           },
                         )
                       ],
@@ -257,10 +280,20 @@ class _StoryPageState extends State<StoryPage> {
                                   itemBuilder:
                                       (BuildContext context, int index) {
                                     return GestureDetector(
+                                      onLongPress: () {
+                                        print('unlike');
+                                        unlikeStory(
+                                            storyId: snapshot.data[index]
+                                                ['storyId'],
+                                            userId: currentUser.uid);
+                                      },
                                       onDoubleTap: () {
-                                        // TODO: implement like feature
                                         print('like');
-                                        // likeStory(snapshot.data[index], currentUser.uid);
+                                        print(snapshot.data[index]['storyId']);
+                                        likeStory(
+                                            storyId: snapshot.data[index]
+                                                ['storyId'],
+                                            userId: currentUser.uid);
                                       },
                                       child: storyCarousel(
                                         index: index,
@@ -281,6 +314,8 @@ class _StoryPageState extends State<StoryPage> {
                                             .data()['createdAt'],
                                         geopoint: snapshot.data[index]
                                             .data()['location']['geopoint'],
+                                        likesList: snapshot.data[index]
+                                            ['likedBy'],
                                       ),
                                     );
                                   },
@@ -314,10 +349,24 @@ class _StoryPageState extends State<StoryPage> {
           ],
         ),
         onPressed: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (BuildContext context) {
-            return AddStory();
-          }));
+          Navigator.of(context).push(PageRouteBuilder(
+              transitionDuration: Duration(milliseconds: 250),
+              pageBuilder: (context, animation, animation1) {
+                return AddStory();
+              },
+              transitionsBuilder: (BuildContext context,
+                  Animation<double> animation,
+                  Animation<double> secondaryAnimation,
+                  Widget child) {
+                return Align(
+                  // here you can try other transition types to changes animation (i.e., ScaleTransition, FadeTransition)
+                  child: SizeTransition(
+                    sizeFactor: animation,
+                    // sizeFactor: animation,
+                    child: child,
+                  ),
+                );
+              }));
         },
         backgroundColor: Colors.white,
       ),
@@ -358,8 +407,24 @@ class _StoryPageState extends State<StoryPage> {
     String story,
     String storyId,
     var geopoint,
+    int numberOfLikes,
+    List<dynamic> likesList,
   }) {
     Widget storyCard;
+    double heartSize = size.width * 0.15;
+    Widget likeStoryWidget = Positioned(
+      bottom: size.height * 0.1,
+      right: 10,
+      child: GestureDetector(
+        onTap: () {
+          // shrink heart size
+          LoginProvider.instance(GoogleSignIn())
+              .unlikeStory(storyId: storyId, userId: currentUser.uid);
+        },
+        child: Icon(FontAwesomeIcons.solidHeart,
+            size: heartSize, color: Colors.redAccent),
+      ),
+    );
     if (type == 'Text') {
       storyCard = Stack(
         children: [
@@ -378,16 +443,22 @@ class _StoryPageState extends State<StoryPage> {
                       Expanded(
                         child: SizedBox(),
                       ),
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
-                          child: Text(
-                            story,
-                            style: TextStyle(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        child: Container(
+                          // width: size.width,
+                          height: size.height / 4,
+                          child: SingleChildScrollView(
+                            child: Text(
+                              story,
+                              softWrap: true,
+                              style: TextStyle(
                                 fontSize: size.width * 0.06,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black),
+                                color: Colors.black,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -407,6 +478,7 @@ class _StoryPageState extends State<StoryPage> {
                           createdAt: createdAt,
                           center: center,
                           geopoint: geopoint,
+                          numberOfLikes: likesList.length,
                         ),
                       ),
                     ],
@@ -457,6 +529,7 @@ class _StoryPageState extends State<StoryPage> {
                   ),
                 )
               : SizedBox(),
+          if (likesList.contains(currentUser.uid)) likeStoryWidget,
         ],
       );
     } else {
@@ -466,37 +539,55 @@ class _StoryPageState extends State<StoryPage> {
           GestureDetector(
             onTap: () {
               print('photo view');
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => Stack(
-                  children: [
-                    PhotoView(
-                      initialScale: PhotoViewComputedScale.contained,
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 2,
-                      scaleStateController: photoViewScaleStateController,
-                      imageProvider: _image,
-                    ),
-                    Positioned(
-                      left: 10,
-                      top: 10,
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Icon(
-                              Icons.close,
-                              color: Colors.white,
+              Navigator.of(context).push(PageRouteBuilder(
+                  transitionDuration: Duration(milliseconds: 250),
+                  pageBuilder: (context, animation, animation1) {
+                    return Stack(
+                      children: [
+                        PhotoView(
+                          initialScale: PhotoViewComputedScale.contained,
+                          minScale: PhotoViewComputedScale.contained,
+                          maxScale: PhotoViewComputedScale.covered * 2,
+                          scaleStateController: photoViewScaleStateController,
+                          imageProvider: _image,
+                        ),
+                        Positioned(
+                          left: 10,
+                          top: 10,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: SafeArea(
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ),
+                      ],
+                    );
+                  },
+                  transitionsBuilder: (BuildContext context,
+                      Animation<double> animation,
+                      Animation<double> secondaryAnimation,
+                      Widget child) {
+                    return Align(
+                      // here you can try other transition types to changes animation (i.e., ScaleTransition, FadeTransition)
+                      child: FadeTransition(
+                        opacity: animation,
+                        // sizeFactor: animation,
+                        child: child,
                       ),
-                    ),
-                  ],
-                ),
-              ));
+                    );
+                  }));
+              // Navigator.of(context).push(MaterialPageRoute(
+              //   builder: (context) =>
+              // ));
             },
             child: Container(
               decoration: BoxDecoration(
@@ -529,6 +620,7 @@ class _StoryPageState extends State<StoryPage> {
                         createdAt: createdAt,
                         center: center,
                         geopoint: geopoint,
+                        numberOfLikes: likesList.length,
                       ),
                     ),
                   ],
@@ -578,6 +670,7 @@ class _StoryPageState extends State<StoryPage> {
                   ),
                 )
               : SizedBox(),
+          if (likesList.contains(currentUser.uid)) likeStoryWidget,
         ],
       );
     }
@@ -600,20 +693,22 @@ class _StoryPageState extends State<StoryPage> {
       suffix = 'km away';
     }
 
-    if (distanceResult < 500) return 'From your neighbour';
+    if (distanceResult < 0.5) return 'From your neighbour';
 
     return '$distanceResult $suffix';
   }
 
-  Widget storySenderDetails(
-      {String senderPhotoUrl,
-      String senderName,
-      Size size,
-      Timestamp createdAt,
-      var geopoint,
-      var center}) {
+  Widget storySenderDetails({
+    String senderPhotoUrl,
+    String senderName,
+    Size size,
+    Timestamp createdAt,
+    var geopoint,
+    var center,
+    int numberOfLikes,
+  }) {
     String distance = calcucateDistance(center: center, geopoint: geopoint);
-    print(distance);
+    // print(distance);
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -639,15 +734,29 @@ class _StoryPageState extends State<StoryPage> {
             Text(distance.toString()),
           ],
         ),
-
         Expanded(
           child: SizedBox(),
         ),
-
-        // TODO: implement time ago
-        Text(createdAt.toDate().hour.toString() +
-            ':' +
-            createdAt.toDate().minute.toString()),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Text(
+              TimeAgo.getTimeAgo(createdAt.toDate()),
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Likes: $numberOfLikes',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            // LikeButton(
+            //   size: size.width * 0.05,
+            //   circleColor:
+            //       const CircleColor(start: Colors.red, end: Colors.orange),
+            //   // isLiked: isStoryLiked,
+            // ),
+          ],
+        ),
       ],
     );
   }

@@ -14,7 +14,9 @@ class StoryProvider with ChangeNotifier {
     Position _currentLocation;
     final Geolocator geolocator = Geolocator()..forceAndroidLocationManager;
     await geolocator
-        .getCurrentPosition(desiredAccuracy: LocationAccuracy.best)
+        .getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.best,
+            locationPermissionLevel: GeolocationPermission.locationWhenInUse)
         .then((Position position) {
       _currentLocation = position;
     });

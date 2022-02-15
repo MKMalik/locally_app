@@ -1,6 +1,5 @@
 import 'package:LocalStory/UI/Pages/Home.dart';
 import 'package:LocalStory/model/story_repository.dart';
-
 import 'package:LocalStory/model/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,13 +12,16 @@ Future<void> main() async {
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(
-          create: (_) => LoginProvider.instance(GoogleSignIn())),
+        create: (_) => LoginProvider.instance(
+          GoogleSignIn(),
+        ),
+      ),
       ChangeNotifierProvider(
         create: (_) => StoryProvider(),
       ),
     ],
     child: MyApp(),
-  ));
+  ),);
 }
 
 class MyApp extends StatefulWidget {

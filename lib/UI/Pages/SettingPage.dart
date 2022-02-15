@@ -15,27 +15,42 @@ class SettingPage extends StatefulWidget {
 class _SettingPageState extends State<SettingPage> {
   FirebaseFirestore _firestore = FirebaseFirestore.instance;
   var _user;
-  bool isLoading = true;
-  User currentUser = FirebaseAuth.instance.currentUser;
+  // bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _user = _firestore.collection('users').doc(currentUser.uid);
-    setState(() {
-      print(_user);
-      isLoading = false;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    var currentUser;
     Size size = MediaQuery.of(context).size;
     final user = Provider.of<LoginProvider>(context);
 
+    // currentUser = user.getCurrentUserDetails();
+
+    // user.getCurrentUserDetails().then((value) {
+    //   currentUser = value;
+    //   // print(currentUser['displayName']);
+    //   setState(() {
+    //     isLoading = false;
+    //   });
+    // });
+
     return Scaffold(
-      body: !isLoading
-          ? Container(
+      body: StreamBuilder(
+        stream: _firestore
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser.uid)
+            .snapshots(),
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
+          if (snapshot.data == null)
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          if (snapshot.data != null)
+            return Container(
               decoration: BoxDecoration(color: backgroundColor),
               child: Stack(
                 children: [
@@ -63,11 +78,13 @@ class _SettingPageState extends State<SettingPage> {
                           width: size.width * 0.25,
                           height: size.width * 0.25,
                           decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(size.width),
-                              color: Colors.white,
-                              image: DecorationImage(
-                                  fit: BoxFit.cover,
-                                  image: NetworkImage(_user['photoUrl']))),
+                            borderRadius: BorderRadius.circular(size.width),
+                            color: Colors.white,
+                            image: DecorationImage(
+                              fit: BoxFit.cover,
+                              image: NetworkImage(snapshot.data['photoUrl']),
+                            ),
+                          ),
                         ),
 
                         SizedBox(
@@ -77,13 +94,22 @@ class _SettingPageState extends State<SettingPage> {
                         //user displayName
                         Center(
                           child: Text(
-                            currentUser.displayName,
+                            snapshot.data['displayName'],
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: size.width * 0.06,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                        ),
+
+                        SizedBox(
+                          height: size.height * 0.02,
+                        ),
+
+                        Text(
+                          'Total Story Posted: ${snapshot.data['totalStoryPosted']}',
+                          style: TextStyle(color: Colors.white),
                         ),
 
                         Expanded(
@@ -111,16 +137,15 @@ class _SettingPageState extends State<SettingPage> {
                           ),
                         ),
 
-                        SizedBox(
-                          height: size.height * 0.2,
-                        ),
+                        SizedBox(height: size.height * 0.2),
                       ],
                     ),
                   ),
                 ],
               ),
-            )
-          : CircularProgressIndicator(),
+            );
+        },
+      ),
     );
   }
 }
